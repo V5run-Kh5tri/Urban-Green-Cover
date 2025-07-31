@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import MapView from "./components/MapView";
 
+const url = import.meta.env.VITE_API_URL;
+
+
+
 function App() {
   const [selected, setSelected] = useState(null);
   const [greenCover, setGreenCover] = useState(null);
@@ -30,7 +34,7 @@ function App() {
     
     console.log("Fetching green cover for:", sectorValue);
     
-    fetch(`http://localhost:8080/api/green-cover/${sectorValue.replace("_", " ")}`)
+    fetch(`${url}/green-cover/${sectorValue.replace("_", " ")}`)
       .then(res => {
         console.log("Response status:", res.status);
         if (!res.ok) {
