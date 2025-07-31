@@ -6,3 +6,4 @@ numpy
 shapely
 geojson
 dotenv
+gunicorn    
