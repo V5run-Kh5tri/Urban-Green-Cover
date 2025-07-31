@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 import concurrent.futures
 from threading import Lock
 import time
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
 app = Flask(__name__)
