@@ -251,4 +251,3 @@ Status Monitoring at (https://stats.uptimerobot.com/v9SISeMI3f).
 *Showcasing the intersection of technology and environmental stewardship*
 
 </div>
-
