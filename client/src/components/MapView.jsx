@@ -3,29 +3,29 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || "";
+const url = import.meta.env.VITE_API_URL;
 
-
-const MapView = ({ selectedSector }) => {
+const MapView = ({ selectedSector, onStatsLoaded }) => {
   const mapRef = useRef(null);
   const mapContainer = useRef(null);
   const hasLoadedRef = useRef(false);
+  const geojsonRef = useRef(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState("");
   const [sectorStats, setSectorStats] = useState([]);
 
-  // Helper to decide color based on green cover %
   const getColor = (greenCover) => {
-    if (greenCover < 20) return "#8B0000"; // Dark red
-    if (greenCover < 30) return "#FF0000"; // Red
-    if (greenCover < 40) return "#FF4500"; // Orange red
-    if (greenCover < 50) return "#FF8C00"; // Dark orange
-    if (greenCover < 60) return "#FFD700"; // Gold
-    if (greenCover < 70) return "#ADFF2F"; // Green yellow
-    if (greenCover < 80) return "#32CD32"; // Lime green
-    return "#006400"; // Dark green
+    if (greenCover < 20) return "#8B0000";
+    if (greenCover < 30) return "#FF0000";
+    if (greenCover < 40) return "#FF4500";
+    if (greenCover < 50) return "#FF8C00";
+    if (greenCover < 60) return "#FFD700";
+    if (greenCover < 70) return "#ADFF2F";
+    if (greenCover < 80) return "#32CD32";
+    return "#006400";
   };
 
-  // Initialize map
   useEffect(() => {
     const map = new mapboxgl.Map({
       container: mapContainer.current,
@@ -45,7 +45,6 @@ const MapView = ({ selectedSector }) => {
     return () => map.remove();
   }, []);
 
-  // Load all sectors data
   const loadAllSectors = async () => {
     if (!mapRef.current || !hasLoadedRef.current) return;
 
@@ -53,21 +52,24 @@ const MapView = ({ selectedSector }) => {
     setLoadingProgress("Fetching all sectors data...");
 
     try {
-      const response = await fetch("http://localhost:8080/api/all-sectors");
+      const response = await fetch(`${url}/all-sectors`);
       if (!response.ok) throw new Error("Failed to fetch sectors data");
 
       const data = await response.json();
       setLoadingProgress(`Loaded ${data.total_sectors} sectors successfully`);
       setSectorStats(data.sector_stats);
+      geojsonRef.current = data.geojson;
+
+      if (onStatsLoaded) {
+        onStatsLoaded(data.sector_stats);
+      }
 
       const map = mapRef.current;
 
-      // Remove existing layers if they exist
       if (map.getLayer("all-sectors-fill")) map.removeLayer("all-sectors-fill");
       if (map.getLayer("all-sectors-line")) map.removeLayer("all-sectors-line");
       if (map.getSource("all-sectors")) map.removeSource("all-sectors");
 
-      // Color expression for green cover %
       const colorExpression = [
         "case",
         ["<", ["get", "green_cover"], 20], "#8B0000",
@@ -80,13 +82,11 @@ const MapView = ({ selectedSector }) => {
         "#006400"
       ];
 
-      // Add GeoJSON source
       map.addSource("all-sectors", {
         type: "geojson",
         data: data.geojson,
       });
 
-      // Fill layer
       map.addLayer({
         id: "all-sectors-fill",
         type: "fill",
@@ -97,7 +97,6 @@ const MapView = ({ selectedSector }) => {
         },
       });
 
-      // Boundary layer
       map.addLayer({
         id: "all-sectors-line",
         type: "line",
@@ -108,7 +107,6 @@ const MapView = ({ selectedSector }) => {
         },
       });
 
-      // Hover cursor
       map.on("mouseenter", "all-sectors-fill", () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -116,28 +114,16 @@ const MapView = ({ selectedSector }) => {
         map.getCanvas().style.cursor = "";
       });
 
-      // Popup on click (with null check)
       map.on("click", "all-sectors-fill", (e) => {
         if (!e.features || e.features.length === 0) return;
         const properties = e.features[0].properties;
 
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(
-            `<div style="padding: 10px;">
-              <h3 style="margin: 0 0 10px 0; color: #333;">${properties.name}</h3>
-              <p style="margin: 0; font-size: 14px;">
-                <strong>Green Cover:</strong> ${properties.green_cover}%
-              </p>
-              <div style="width: 100%; height: 10px; background: #eee; border-radius: 5px; margin-top: 8px;">
-                <div style="width: ${properties.green_cover}%; height: 100%; background: ${getColor(properties.green_cover)}; border-radius: 5px;"></div>
-              </div>
-            </div>`
-          )
+          .setHTML(getPopupHTML(properties))
           .addTo(map);
       });
 
-      // Fit bounds
       const bounds = new mapboxgl.LngLatBounds();
       data.geojson.features.forEach((feature) => {
         const { type, coordinates } = feature.geometry;
@@ -149,6 +135,7 @@ const MapView = ({ selectedSector }) => {
           );
         }
       });
+
       if (!bounds.isEmpty()) {
         map.fitBounds(bounds, { padding: 50 });
       }
@@ -165,37 +152,81 @@ const MapView = ({ selectedSector }) => {
     }
   };
 
-  // Highlight selected sector
   useEffect(() => {
-    if (!selectedSector || !mapRef.current || !hasLoadedRef.current) return;
+    if (
+      !selectedSector ||
+      !mapRef.current ||
+      !hasLoadedRef.current ||
+      !geojsonRef.current
+    )
+      return;
 
     const map = mapRef.current;
-    if (!map.getSource("all-sectors")) return;
+    const sectorName = selectedSector.replace("_", " ");
 
-    const features = map.querySourceFeatures("all-sectors");
-    const sectorFeature = features.find(
-      (feature) => feature.properties.name === selectedSector
+    const sectorFeature = geojsonRef.current.features.find(
+      (feature) => feature.properties.name === sectorName
     );
 
-    if (sectorFeature) {
-      const bounds = new mapboxgl.LngLatBounds();
-      const { type, coordinates } = sectorFeature.geometry;
-
-      if (type === "Polygon") {
-        coordinates[0].forEach((coord) => bounds.extend(coord));
-      } else if (type === "MultiPolygon") {
-        coordinates.forEach((polygon) =>
-          polygon[0].forEach((coord) => bounds.extend(coord))
-        );
-      }
-
-      if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, { padding: 100, duration: 1000 });
-      }
-    } else {
+    if (!sectorFeature) {
       console.warn(`No feature found for sector: ${selectedSector}`);
+      return;
     }
+
+    if (map.getLayer("highlight-sector")) map.removeLayer("highlight-sector");
+    if (map.getSource("highlight-sector")) map.removeSource("highlight-sector");
+
+    map.addSource("highlight-sector", {
+      type: "geojson",
+      data: sectorFeature,
+    });
+
+    map.addLayer({
+      id: "highlight-sector",
+      type: "line",
+      source: "highlight-sector",
+      paint: {
+        "line-color": "#FFD700",
+        "line-width": 4,
+      },
+    });
+
+    const bounds = new mapboxgl.LngLatBounds();
+    const { type, coordinates } = sectorFeature.geometry;
+
+    if (type === "Polygon") {
+      coordinates[0].forEach((coord) => bounds.extend(coord));
+    } else if (type === "MultiPolygon") {
+      coordinates.forEach((polygon) =>
+        polygon[0].forEach((coord) => bounds.extend(coord))
+      );
+    }
+
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 100, duration: 1000 });
+    }
+
+    const properties = sectorFeature.properties;
+
+    new mapboxgl.Popup()
+      .setLngLat(bounds.getCenter())
+      .setHTML(getPopupHTML(properties))
+      .addTo(map);
   }, [selectedSector]);
+
+  const getPopupHTML = (properties) => `
+    <div style="padding: 10px;">
+      <h3 style="margin: 0 0 10px 0; color: #333;">${properties.name}</h3>
+      <p style="margin: 0; font-size: 14px;">
+        <strong>Green Cover:</strong> ${properties.green_cover}%
+      </p>
+      <div style="width: 100%; height: 10px; background: #eee; border-radius: 5px; margin-top: 8px;">
+        <div style="width: ${properties.green_cover}%; height: 100%; background: ${getColor(
+    properties.green_cover
+  )}; border-radius: 5px;"></div>
+      </div>
+    </div>
+  `;
 
   // Calculate stats
   const getStats = () => {
@@ -203,7 +234,8 @@ const MapView = ({ selectedSector }) => {
 
     const sorted = [...sectorStats].sort((a, b) => b.green_cover - a.green_cover);
     const average =
-      sectorStats.reduce((sum, s) => sum + s.green_cover, 0) / sectorStats.length;
+      sectorStats.reduce((sum, s) => sum + s.green_cover, 0) /
+      sectorStats.length;
 
     return {
       total: sectorStats.length,
@@ -242,7 +274,6 @@ const MapView = ({ selectedSector }) => {
           </div>
           <div style={{ marginTop: "20px" }}>
             <div
-              className="spinner"
               style={{
                 border: "4px solid #f3f3f3",
                 borderTop: "4px solid #3498db",
@@ -352,7 +383,7 @@ const MapView = ({ selectedSector }) => {
       >
         <button
           onClick={() => {
-            fetch("http://localhost:8080/api/clear-cache")
+            fetch(`${url}/clear-cache`)
               .then(() => loadAllSectors())
               .catch(console.error);
           }}
@@ -382,7 +413,6 @@ const MapView = ({ selectedSector }) => {
         }}
       />
 
-      {/* CSS for spinner animation */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
