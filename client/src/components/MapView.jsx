@@ -72,15 +72,11 @@ const MapView = ({ selectedSector, onStatsLoaded }) => {
 
       const colorExpression = [
         "case",
-        ["<", ["get", "green_cover"], 20], "#8B0000",
-        ["<", ["get", "green_cover"], 30], "#FF0000",
-        ["<", ["get", "green_cover"], 40], "#FF4500",
-        ["<", ["get", "green_cover"], 50], "#FF8C00",
-        ["<", ["get", "green_cover"], 60], "#FFD700",
-        ["<", ["get", "green_cover"], 70], "#ADFF2F",
-        ["<", ["get", "green_cover"], 80], "#32CD32",
-        "#006400"
+        ["<", ["get", "green_cover"], 43.5], "#e74c3c",   // Critical
+        ["<", ["get", "green_cover"], 52], "#f39c12",     // Moderate
+        "#27ae60"                                         // Good
       ];
+
 
       map.addSource("all-sectors", {
         type: "geojson",
@@ -334,43 +330,29 @@ const MapView = ({ selectedSector, onStatsLoaded }) => {
           borderRadius: "8px",
           boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
           zIndex: 100,
-          fontSize: "12px",
+          fontSize: "13px",
+          fontFamily: "sans-serif",
         }}
       >
-        <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>
-          Green Cover Legend
-        </h4>
-        {[
-          { range: "80%+", color: "#006400" },
-          { range: "70-80%", color: "#32CD32" },
-          { range: "60-70%", color: "#ADFF2F" },
-          { range: "50-60%", color: "#FFD700" },
-          { range: "40-50%", color: "#FF8C00" },
-          { range: "30-40%", color: "#FF4500" },
-          { range: "20-30%", color: "#FF0000" },
-          { range: "<20%", color: "#8B0000" },
-        ].map((item, index) => (
-          <div
-            key={index}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "5px",
-            }}
-          >
-            <div
-              style={{
-                width: "20px",
-                height: "15px",
-                backgroundColor: item.color,
-                marginRight: "8px",
-                border: "1px solid #ccc",
-              }}
-            ></div>
-            <span>{item.range}</span>
-          </div>
-        ))}
+        <h4 style={{ margin: "0 0 10px 0", color: "#222" }}>Green Cover Levels</h4>
+        
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "#e74c3c", borderRadius: "4px", marginRight: "10px" }} />
+          <span>Critical (&lt; 43.5%)</span>
+        </div>
+        
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "#f39c12", borderRadius: "4px", marginRight: "10px" }} />
+          <span>Moderate (43.5%–52%)</span>
+        </div>
+        
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ width: "20px", height: "20px", backgroundColor: "#27ae60", borderRadius: "4px", marginRight: "10px" }} />
+          <span>Good (&gt;= 52%)</span>
+        </div>
       </div>
+
+
 
       {/* Refresh button */}
       <div
