@@ -240,6 +240,7 @@ This project is primarily a technical showcase. For questions about implementati
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Status Monitoring at (https://stats.uptimerobot.com/v9SISeMI3f).
 
 ---
 
@@ -250,3 +251,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Showcasing the intersection of technology and environmental stewardship*
 
 </div>
+
